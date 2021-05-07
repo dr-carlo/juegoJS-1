@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+    <title>JuegoJS-3</title>
+</head>
+<header>
+    <script>
+    // PEQUENO SCRIPT PARA DEMOSTRACION
+	  // USAR LAS TECLAS DE FLECHA PARA IR MOVIENDO Y NO CHOCAR
+        // PARA QUE SE CARGUE DESPUES DE TODO EL HTML  
+        window.onload = function () {
+            const detalles = {
+                screen: { width: 450, height: 750 }, // TAMAÑO PANTALLA
+                colors: {
+                    banana: "yellow", // OBJETO QUE CAE
+                    background: "blue", // FONDO 
+                    letrero: "gray", // BARRA SUPERIOR
+                    escalon: "brown", // PELDAÑOS
+                    dialogBg: "orange", // CUADRO DE TEXTO
+                    dialogText: "black" // TEXTO EN EL CUADRO
+                },
+                gravity: 0.5, // PARA VELOCIDAD DE CAIDA 
+                acceleration: 0.2, // PARA VELOCIDAD DE MOVIMIENTO LATERAL
+                posXescalon: [44, 326, 100, 246, 141, 220], // POSICION DE COLUMNAS
+                initPosYescalon: 500, // ALTURA DE INICIO DEL JUEGO
+                velocidadArranque: 1.3,
+                increment: 0.004 // PARA ACELERAR VELOCIDAD
+            }
+        
+            document.querySelector("header").innerHTML = `<canvas width=${detalles.screen.width} height=${detalles.screen.height} id='JUEGO3'>`;
+            const canvas = document.querySelector('#JUEGO3'); // ID EN HTML
+            const ctx = canvas.getContext('2d');
+
+            let mensaje = { // CUADRO DE TEXTO FINAL
+                // x: (detalles.screen.width / 3) - 150,
+                // y: (detalles.screen.height * 0.01), 
+                x: (1), // POSICION HORIZONTAL
+                y: (15), // POSICION VERTICAL
+                height:  30, // ALTO Y ANCHO DEL CUADRO, PUEDEN SER
+                width: 447 // VALORES NEGATIVOS SOLO INVIERTEN POSICION
+            }
+            let paredes = {
+                izquierda: {},
+                derecha: {}
+            }
+            // 'KEY' DEBE SER EXACTAMENTE ESA PALABRA
+            let key = {derecha: false, izquierda: false }
+            let banana = { x: 320, y: 10, 
+                radius: 20, colision: false, // 'RADIUS' PARA TAMAÑO 
+                gSpeed: 0, vx: 0 
+            };
+            let escalones = []; // CREAR VACIO ARRAY DE PELDAÑOS
+            let velocidad = detalles.velocidadArranque;
+            let juegando = false;
+            let perder = false;
+            const tecnica = {
+                getPosXescalon() { // PARA PELDAÑOS ALEATORIOS
+                    return detalles.posXescalon[Math.floor(Math.random() * detalles.posXescalon.length)];
+                },
+                colision(e1, e2) { // PARA PISAR Y MANTENERSE EN EL PELDAÑO
+                    if (e1.x < e2.x + e2.width &&
+                        e1.x + e1.radius > e2.x &&
+                        e1.y < e2.y + e2.height &&
+                        e1.radius + e1.y > e2.y) {
+                        return true;
+                    } else { return false; }
+                }
+            }
+            
+            iniciar(); // PARA EMPEZAR TODO EL JUEGO
+           
+            // PARA MOVER CON TECLAS FLECHA
+            document.addEventListener("keydown", bajando);
+            document.addEventListener("keyup", quieto);
+            setInterval(actualizar, 10); // VELOCIDAD GENERAL, 10 MILISEGUNDOS
+
+            function iniciar() {
+                for (let i = 0; i < 8; i++) { // 10 ESCALONES
+                    let posX = tecnica.getPosXescalon();
+                    escalones.push({
+                        type: 1, // PARA PODER SELECCIONAR PELDAÑOS 
+                        y: (80 * i) + detalles.initPosYescalon, // SEPARACION ENTRE PELDAÑOS Y POSICION VERTICAL
+                        x: posX, // POSICION HORIZONTAL / COLUMNA ALEATORIA
+                        height: 10, // ALTO DE PELDAÑOS
+                        width: 95, // ANCHO DE PELDAÑOS
+                    })
+                }
+                banana.x = escalones[0].x + (escalones[0].width / 2);
+            }
+        
+            // CUANDO SE RECARGA/ACTUALIZA LA WEB NO SE REINICIA
+            function reiniciar() {
+                velocidad = detalles.velocidadArranque;
+                for (let i = 0; i < 8; i++) {
+                    let posX = tecnica.getPosXescalon();
+                    if (i > 0) {
+                        while (posX === escalones[i - 1].x) {
+                            posX = tecnica.getPosXescalon();
+                        }
+                    }
+                    escalones[i].y = (90 * i) + detalles.initPosYescalon;
+                    escalones[i].x = posX;
+                }
+                banana.y = 150; // ALTURA DESDE DONDE CAE
+                banana.x = escalones[0].x + (escalones[0].width / 2);
+                perder = false;
+            }
+        
+            function bajando(e) {
+                if (!juegando && !perder) juegando = true;
+                // CODIGOS DE TECLADO JAVASCRIPT
+                if (perder && e.keyCode == 40) reiniciar();
+                // ENTRE COMILLAS TIENEN QUE IR EXACTAMENTE
+                // ESAS PALABRAS PARA QUE EL NAVEGADOR ENTIENDA
+                if (e.key == "Right" || e.key == "ArrowRight") {
+                key.derecha = true;
+                } else if (e.key == "Left" || e.key == "ArrowLeft") {
+                    key.izquierda = true;
+                }
+            }
+            
+            function quieto(e) {
+                banana.vx = 0
+                if (e.key == "Right" || e.key == "ArrowRight") {
+                key.derecha = false;
+                } else if (e.key == "Left" || e.key == "ArrowLeft") {
+                    key.izquierda = false;
+                }
+            }
+           
+            // PARA ACTUALIZAR EL DOM
+            function actualizar(time) {
+                velocidad += detalles.increment; 
+                movimiento();
+                choques();
+                dibujo();
+            }
+            
+            function dibujo() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+                // FONDO
+                ctx.fillStyle = detalles.colors.background;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.closePath();
+        
+                // ESCALONES
+                escalones.forEach(element => {
+                    if (element.type > 0) {
+                        ctx.fillStyle = detalles.colors.escalon;
+                        ctx.fillRect(element.x, element.y, element.width, element.height);
+                    } else {
+                        let pos = { x: element.x, y: element.y }
+                        ctx.fillStyle = detalles.colors.peakPlafom;
+                        ctx.fillRect(pos.x, pos.y, element.width, element.height - 10);
+                        for (let i = 0; i < 9; i++) {
+                            ctx.beginPath();
+                            ctx.moveTo(pos.x, pos.y);
+                            ctx.lineTo(pos.x + 5, pos.y - 5);
+                            ctx.lineTo(pos.x + 10, pos.y);
+                            ctx.fill();
+                            pos.x += 10;
+                        }
+                    }
+                });
+        
+                // OBJETO QUE CAE
+                ctx.beginPath(); // PARA CIRCULO COMPLETO ES PI * 2
+                ctx.arc(banana.x, banana.y, banana.radius, 0, Math.PI * 0.7);
+                ctx.fillStyle = detalles.colors.banana;
+                ctx.fill();
+                ctx.closePath();
+        
+                // BARRA SUPERIOR
+                ctx.fillStyle = detalles.colors.letrero;
+                ctx.fillRect(0, 0, canvas.width, 20);
+                ctx.closePath();
+        
+                // TEXTO FINAL
+                if (perder && !juegando) {
+                        // COLOR DEL CUADRO
+                        ctx.fillStyle = detalles.colors.dialogBg;
+                        // TAMAÑO DEL CUADRO
+                        ctx.fillRect(mensaje.x, mensaje.y, mensaje.width, mensaje.height);
+                        ctx.closePath();
+                        // COLOR DEL TEXTO
+                        ctx.fillStyle = detalles.colors.dialogText;
+                        ctx.font = "20px 'Verdana'"; // TAHOMA, ARIAL, ETC.
+                        ctx.fillText("Presiona flecha-abajo para jugar otra", (20), mensaje.y + 23)
+                        ctx.closePath();
+                    }
+            }
+  
+            function movimiento() {
+                if (juegando) flujo();
+                if (!banana.colision && !perder) {
+                    banana.gSpeed += detalles.gravity;
+                    banana.y += banana.gSpeed;
+                }
+                if (key.derecha && juegando) banana.vx += detalles.acceleration;
+                if (key.izquierda && juegando) banana.vx -= detalles.acceleration;
+                if (juegando) banana.x += banana.vx;
+            }
+        
+            function flujo() {
+                escalones.forEach((element, i) => {
+                    element.y -= velocidad;
+                    if (element.y < -20) {
+                        let posX = tecnica.getPosXescalon();
+                        let posUp = 0;
+                        (i > 0) ? posUp = escalones[i - 1].x : posUp = escalones[i * 1].x
+                        while (posX === posUp) {
+                            posX = tecnica.getPosXescalon();
+                        }
+                        element.x = posX;
+                        element.y = canvas.height + element.height
+                    }
+                });
+            }
+
+            function choques() {
+                for (let element of escalones) {
+                    if (tecnica.colision(banana, element)) {
+                        banana.colision = true;
+                        banana.gSpeed = 0;
+                        banana.y = element.y - banana.radius;
+                        if (element.type == 0) {
+                            perdiste();
+                        }
+                        break;
+                    } else {
+                        banana.colision = false;
+                        if (juegando && (banana.y > canvas.height - 20 || banana.y < 20)) perdiste();
+                    }
+                }
+                if (tecnica.colision(banana, paredes.izquierda)) {
+                    banana.vx = 0
+                    banana.x = paredes.izquierda.width;
+                }
+                if (tecnica.colision(banana, paredes.derecha)) {
+                    banana.vx = 0
+                    banana.x = paredes.derecha.x - banana.radius;
+                }
+            }
+        
+            function perdiste() {
+                juegando = false;
+                perder = true;
+            }
+        }
+        </script>
+        
+</header>
+</html>
